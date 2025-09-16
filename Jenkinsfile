@@ -9,14 +9,14 @@ pipeline {
 
     stages {
         stage('Clone Repository') {
-            agent { node { label 'master' } } // or remove label if controller has no label
+            agent { node { } }
             steps {
                 git url: 'https://github.com/rak2712/orangehrm-tests.git', branch: 'main'
             }
         }
 
         stage('Build Docker Image') {
-            agent { node { label 'master' } }
+            agent { node { } }
             steps {
                 echo 'Building Docker image from Dockerfile...'
                 sh '''
@@ -26,7 +26,7 @@ pipeline {
         }
 
         stage('Run Tests in Container') {
-            agent { node { label 'master' } }
+            agent { node { } }
             steps {
                 echo 'Running tests inside Docker container...'
                 sh '''
@@ -43,7 +43,7 @@ pipeline {
         }
 
         stage('Publish Test Report') {
-            agent { node { label 'master' } }
+            agent { node { } }
             steps {
                 junit 'reports/**/*.xml'
             }
