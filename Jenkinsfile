@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'ubuntu' }
+    agent none
 
     environment {
         BASE_URL = credentials('BASE_URL')
@@ -9,27 +9,43 @@ pipeline {
 
     stages {
         stage('Clone Repository') {
+            agent { node { label 'master' } } // or remove label if controller has no label
             steps {
                 git url: 'https://github.com/rak2712/orangehrm-tests.git', branch: 'main'
             }
         }
 
-        stage('Deploy on Ubuntu') {
+        stage('Build Docker Image') {
+            agent { node { label 'master' } }
             steps {
-                echo 'Running Docker container on Ubuntu...'
+                echo 'Building Docker image from Dockerfile...'
                 sh '''
-                    echo "Using BASE_URL: $BASE_URL"
-                    echo "Logging in with USER_NAME: $USER_NAME"
+                    docker build -t orangehrm-tests .
+                '''
+            }
+        }
+
+        stage('Run Tests in Container') {
+            agent { node { label 'master' } }
+            steps {
+                echo 'Running tests inside Docker container...'
+                sh '''
+                    mkdir -p reports
+
                     docker run --rm \
                         -e BASE_URL=$BASE_URL \
                         -e USER_NAME=$USER_NAME \
                         -e PASSWORD=$PASSWORD \
-                        -v /usr/bin/google-chrome:/usr/bin/google-chrome \
-                        -v /usr/bin/chromedriver:/usr/bin/chromedriver \
-                        -v $(pwd):/app \
-                        -w /app \
+                        -v $(pwd)/reports:/app/reports \
                         orangehrm-tests
                 '''
+            }
+        }
+
+        stage('Publish Test Report') {
+            agent { node { label 'master' } }
+            steps {
+                junit 'reports/**/*.xml'
             }
         }
     }
