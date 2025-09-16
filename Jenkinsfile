@@ -1,68 +1,38 @@
-pipeline {
-    agent any
+stage('Run Selenium Tests') {
+    steps {
+        script {
+            def exitCode = sh(
+                script: '''
+                    mkdir -p reports
+                    docker run --rm \
+                        -e BASE_URL=$BASE_URL \
+                        -e USER_NAME=$USER_NAME \
+                        -e PASSWORD=$PASSWORD \
+                        -v $PWD:/app \
+                        orangehrm_automation \
+                        pytest --junitxml=/app/reports/results.xml
+                ''',
+                returnStatus: true
+            )
+            
+            def testResults = readFile('reports/results.xml')
+            def xml = new XmlSlurper().parseText(testResults)
 
-    environment {
-        BASE_URL = credentials('BASE_URL')
-        USER_NAME = credentials('USER_NAME')
-        PASSWORD = credentials('PASSWORD')
-    }
+            def totalTests = xml.testsuite.@tests.toInteger()
+            def failures = xml.testsuite.@failures.toInteger()
+            def errors = xml.testsuite.@errors.toInteger()
+            def skipped = xml.testsuite.@skipped.toInteger()
+            
+            def failedTests = failures + errors
+            echo "Total tests: ${totalTests}, Failed tests (failures + errors): ${failedTests}, Skipped: ${skipped}"
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/rak2712/orangehrm-tests.git'
+            if (failedTests >= totalTests * 0.5) {
+                currentBuild.result = 'FAILURE'
+            } else if (failedTests > 0) {
+                currentBuild.result = 'UNSTABLE'
+            } else {
+                currentBuild.result = 'SUCCESS'
             }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t orangehrm_automation .'
-            }
-        }
-
-        stage('Run Selenium Tests') {
-            steps {
-                script {
-                    def exitCode = sh(
-                        script: '''
-                            mkdir -p reports
-                            docker run --rm \
-                                -e BASE_URL=$BASE_URL \
-                                -e USER_NAME=$USER_NAME \
-                                -e PASSWORD=$PASSWORD \
-                                -v $PWD:/app \
-                                orangehrm_automation \
-                                pytest --junitxml=/app/reports/results.xml
-                        ''',
-                        returnStatus: true
-                    )
-
-                    if (exitCode != 0) {
-                        currentBuild.result = 'UNSTABLE'  // Mark as unstable if tests fail
-                    }
-                }
-            }
-        }
-
-        stage('Publish Test Report') {
-            steps {
-                junit allowEmptyResults: true, testResults: 'reports/results.xml'
-            }
-        }
-    }
-
-    post {
-        always {
-            echo '🧹 Cleaning up...'
-            junit allowEmptyResults: true, testResults: 'reports/results.xml'
-        }
-
-        failure {
-            echo '❌ Build failed!'
-        }
-
-        success {
-            echo '✅ Build succeeded!'
         }
     }
 }
