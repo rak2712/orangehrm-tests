@@ -1,5 +1,5 @@
 pipeline {
-    agent none
+    agent any
 
     environment {
         BASE_URL = credentials('BASE_URL')
@@ -9,14 +9,12 @@ pipeline {
 
     stages {
         stage('Clone Repository') {
-            agent { node { } }
             steps {
                 git url: 'https://github.com/rak2712/orangehrm-tests.git', branch: 'main'
             }
         }
 
         stage('Build Docker Image') {
-            agent { node { } }
             steps {
                 echo 'Building Docker image from Dockerfile...'
                 sh '''
@@ -26,7 +24,6 @@ pipeline {
         }
 
         stage('Run Tests in Container') {
-            agent { node { } }
             steps {
                 echo 'Running tests inside Docker container...'
                 sh '''
@@ -43,7 +40,6 @@ pipeline {
         }
 
         stage('Publish Test Report') {
-            agent { node { } }
             steps {
                 junit 'reports/**/*.xml'
             }
