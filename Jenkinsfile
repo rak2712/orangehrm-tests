@@ -14,29 +14,24 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Install Dependencies') {
             steps {
-                sh 'docker build -t orangehrm_automation .'
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Run Selenium Tests') {
             steps {
-                script {
-                    def exitCode = sh(
-                        script: '''
-                            mkdir -p reports
-                            docker run --rm \
-                                -e BASE_URL=$BASE_URL \
-                                -e USER_NAME=$USER_NAME \
-                                -e PASSWORD=$PASSWORD \
-                                -v $PWD:/app \
-                                orangehrm_automation \
-                                pytest --junitxml=/app/reports/results.xml
-                        ''',
-                        returnStatus: true
-                    )
-                }
+                sh '''
+                    . venv/bin/activate
+                    mkdir -p reports
+                    BASE_URL=$BASE_URL USER_NAME=$USER_NAME PASSWORD=$PASSWORD pytest --junitxml=reports/results.xml
+                '''
             }
         }
 
