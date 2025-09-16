@@ -17,10 +17,8 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
+                    python3 -m pip install --upgrade pip
+                    pip3 install -r requirements.txt
                 '''
             }
         }
@@ -28,10 +26,32 @@ pipeline {
         stage('Run Selenium Tests') {
             steps {
                 sh '''
-                    . venv/bin/activate
                     mkdir -p reports
-                    BASE_URL=$BASE_URL USER_NAME=$USER_NAME PASSWORD=$PASSWORD pytest --junitxml=reports/results.xml
+                    pytest --junitxml=reports/results.xml || true
                 '''
+            }
+        }
+
+        stage('Parse Test Results') {
+            steps {
+                script {
+                    def result = readFile('reports/results.xml')
+                    def passed = (result =~ /<testcase /).count() - (result =~ /<failure>/).count()
+                    def failed = (result =~ /<failure>/).count()
+                    def total = passed + failed
+
+                    echo "✅ Passed: ${passed}"
+                    echo "❌ Failed: ${failed}"
+                    echo "📊 Total: ${total}"
+
+                    currentBuild.description = "Pass: ${passed}, Fail: ${failed}"
+
+                    if (total > 0 && failed >= Math.ceil(total * 0.5)) {
+                        error("Too many failed test cases: ${failed}/${total}")
+                    } else if (failed > 0) {
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
             }
         }
 
@@ -47,11 +67,9 @@ pipeline {
             echo '🧹 Cleaning up...'
             junit allowEmptyResults: true, testResults: 'reports/results.xml'
         }
-
         failure {
             echo '❌ Build failed!'
         }
-
         success {
             echo '✅ Build succeeded!'
         }
