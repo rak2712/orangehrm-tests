@@ -10,13 +10,13 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/rak2712/orange-deckor.git'
+                git branch: 'main', url: 'https://github.com/rak2712/orangehrm-tests.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t orangehrm-selenium .'
+                sh 'docker build -t orangehrm_automation .'
             }
         }
 
@@ -31,7 +31,7 @@ pipeline {
                                 -e USER_NAME=$USER_NAME \
                                 -e PASSWORD=$PASSWORD \
                                 -v $PWD:/app \
-                                orangehrm-selenium \
+                                orangehrm_automation \
                                 pytest --junitxml=/app/reports/results.xml
                         ''',
                         returnStatus: true
