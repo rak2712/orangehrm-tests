@@ -55,26 +55,6 @@ pipeline {
         always {
             echo '🧹 Cleaning up...'
             junit allowEmptyResults: true, testResults: 'reports/results.xml'
-
-            script {
-                def result = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
-                if (result != null) {
-                    int total = result.totalCount
-                    int failed = result.failCount
-                    int passed = total - failed
-
-                    def green = "\u001B[32m"
-                    def red = "\u001B[31m"
-                    def reset = "\u001B[0m"
-
-                    ansiColor('xterm') {
-                        echo "${green}✅ Passed: ${passed}${reset}"
-                        echo "${red}❌ Failed: ${failed}${reset}"
-                    }
-                } else {
-                    echo "No test results found."
-                }
-            }
         }
 
         failure {
