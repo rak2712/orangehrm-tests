@@ -8,35 +8,37 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git url: 'https://github.com/rak2712/orangehrm-tests.git', branch: 'main'
+                git branch: 'main', url: 'https://github.com/rak2712/orange-deckor.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t orangehrm-tests .'
+                sh 'docker build -t orangehrm-selenium .'
             }
         }
 
-        stage('Run Tests in Container') {
+        stage('Run Selenium Tests') {
             steps {
                 script {
-                    // Run tests and save exit code, but don't fail pipeline immediately
-                    def status = sh(script: '''
-                        mkdir -p reports
-                        docker run --rm \
-                            -e BASE_URL=$BASE_URL \
-                            -e USER_NAME=$USER_NAME \
-                            -e PASSWORD=$PASSWORD \
-                            -v $(pwd)/reports:/app/reports \
-                            orangehrm-tests
-                    ''', returnStatus: true)
+                    def exitCode = sh(
+                        script: '''
+                            mkdir -p reports
+                            docker run --rm \
+                                -e BASE_URL=$BASE_URL \
+                                -e USER_NAME=$USER_NAME \
+                                -e PASSWORD=$PASSWORD \
+                                -v $PWD:/app \
+                                orangehrm-selenium \
+                                pytest --junitxml=/app/reports/results.xml
+                        ''',
+                        returnStatus: true
+                    )
 
-                    // Mark build unstable on test failures, but do not fail pipeline
-                    if (status != 0) {
-                        currentBuild.result = 'UNSTABLE'
+                    if (exitCode != 0) {
+                        currentBuild.result = 'UNSTABLE'  // Mark as unstable if tests fail
                     }
                 }
             }
@@ -44,32 +46,33 @@ pipeline {
 
         stage('Publish Test Report') {
             steps {
-                // Publish JUnit reports from reports folder
-                junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
+                junit allowEmptyResults: true, testResults: 'reports/results.xml'
             }
         }
     }
 
     post {
         always {
-            script {
-                def testResult = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+            echo '🧹 Cleaning up...'
+            junit allowEmptyResults: true, testResults: 'reports/results.xml'
 
-                if (testResult != null) {
-                    int total = testResult.totalCount
-                    int failed = testResult.failCount
+            script {
+                def result = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+                if (result != null) {
+                    int total = result.totalCount
+                    int failed = result.failCount
                     int passed = total - failed
 
-                    def green = "\u001B[32m" // green color
-                    def red = "\u001B[31m"   // red color
-                    def reset = "\u001B[0m"  // reset color
+                    def green = "\u001B[32m"
+                    def red = "\u001B[31m"
+                    def reset = "\u001B[0m"
 
                     ansiColor('xterm') {
-                        println("${green}Tests Passed: ${passed}${reset}")
-                        println("${red}Tests Failed: ${failed}${reset}")
+                        echo "${green}✅ Passed: ${passed}${reset}"
+                        echo "${red}❌ Failed: ${failed}${reset}"
                     }
                 } else {
-                    println("No test results found.")
+                    echo "No test results found."
                 }
             }
         }
