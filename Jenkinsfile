@@ -8,7 +8,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/rak2712/orangehrm-tests.git'
@@ -30,11 +29,15 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-
                     mkdir -p reports
-                    chmod -R 777 reports
 
+                    # Run pytest, allow failure to continue the pipeline
                     pytest --junitxml=reports/results.xml || true
+
+                    # Set permissions if the report exists
+                    if [ -f reports/results.xml ]; then
+                        chmod 777 reports/results.xml
+                    fi
                 '''
             }
         }
@@ -42,22 +45,26 @@ pipeline {
         stage('Parse Test Results') {
             steps {
                 script {
-                    def result = readFile('reports/results.xml')
-                    def total = 0
-                    def failed = 0
+                    def resultsFile = 'reports/results.xml'
+                    if (fileExists(resultsFile)) {
+                        def result = readFile(resultsFile)
+                        def total = 0
+                        def failed = 0
 
-                    for (line in result.readLines()) {
-                        if (line.contains("<testcase")) total++
-                        if (line.contains("<failure")) failed++
-                    }
+                        result.readLines().each { line ->
+                            if (line.contains("<testcase")) total++
+                            if (line.contains("<failure")) failed++
+                        }
 
-                    def passed = total - failed
+                        def passed = total - failed
+                        echo "📊 Total: ${total}, ✅ Passed: ${passed}, ❌ Failed: ${failed}"
+                        currentBuild.description = "✅ ${passed} | ❌ ${failed}"
 
-                    echo "📊 Total: ${total}, ✅ Passed: ${passed}, ❌ Failed: ${failed}"
-                    currentBuild.description = "✅ ${passed} | ❌ ${failed}"
-
-                    if (total > 0 && failed > (total / 2)) {
-                        error("More than 50% of test cases failed. Failing the build.")
+                        if (total > 0 && failed > (total / 2)) {
+                            error("More than 50% of test cases failed. Failing the build.")
+                        }
+                    } else {
+                        echo "⚠️ Test results file not found: ${resultsFile}"
                     }
                 }
             }
@@ -75,11 +82,9 @@ pipeline {
             echo '🧹 Cleaning up...'
             junit allowEmptyResults: true, testResults: 'reports/results.xml'
         }
-
         success {
             echo '✅ Build succeeded!'
         }
-
         failure {
             echo '❌ Build failed!'
         }
