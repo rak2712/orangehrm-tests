@@ -23,6 +23,7 @@ pipeline {
         stage('Run Tests in Container') {
             steps {
                 script {
+                    // Run tests and save exit code, but don't fail pipeline immediately
                     def status = sh(script: '''
                         mkdir -p reports
                         docker run --rm \
@@ -32,13 +33,18 @@ pipeline {
                             -v $(pwd)/reports:/app/reports \
                             orangehrm-tests
                     ''', returnStatus: true)
-                    currentBuild.result = (status == 0) ? 'SUCCESS' : 'UNSTABLE'
+
+                    // Mark build unstable on test failures, but do not fail pipeline
+                    if (status != 0) {
+                        currentBuild.result = 'UNSTABLE'
+                    }
                 }
             }
         }
 
         stage('Publish Test Report') {
             steps {
+                // Publish JUnit reports from reports folder
                 junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
             }
         }
@@ -47,18 +53,17 @@ pipeline {
     post {
         always {
             script {
-                // Read test result summary from junit step's built-in variables
                 def testResult = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
 
                 if (testResult != null) {
                     int total = testResult.totalCount
                     int failed = testResult.failCount
                     int passed = total - failed
-                    def green = "\u001B[32m"
-                    def red = "\u001B[31m"
-                    def reset = "\u001B[0m"
 
-                    // Print colored summary to console log
+                    def green = "\u001B[32m" // green color
+                    def red = "\u001B[31m"   // red color
+                    def reset = "\u001B[0m"  // reset color
+
                     ansiColor('xterm') {
                         println("${green}Tests Passed: ${passed}${reset}")
                         println("${red}Tests Failed: ${failed}${reset}")
@@ -67,6 +72,14 @@ pipeline {
                     println("No test results found.")
                 }
             }
+        }
+
+        failure {
+            echo '❌ Build failed!'
+        }
+
+        success {
+            echo '✅ Build succeeded!'
         }
     }
 }
