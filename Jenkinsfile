@@ -32,7 +32,6 @@ pipeline {
                             -v $(pwd)/reports:/app/reports \
                             orangehrm-tests
                     ''', returnStatus: true)
-
                     currentBuild.result = (status == 0) ? 'SUCCESS' : 'UNSTABLE'
                 }
             }
@@ -41,6 +40,32 @@ pipeline {
         stage('Publish Test Report') {
             steps {
                 junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                // Read test result summary from junit step's built-in variables
+                def testResult = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+
+                if (testResult != null) {
+                    int total = testResult.totalCount
+                    int failed = testResult.failCount
+                    int passed = total - failed
+                    def green = "\u001B[32m"
+                    def red = "\u001B[31m"
+                    def reset = "\u001B[0m"
+
+                    // Print colored summary to console log
+                    ansiColor('xterm') {
+                        println("${green}Tests Passed: ${passed}${reset}")
+                        println("${red}Tests Failed: ${failed}${reset}")
+                    }
+                } else {
+                    println("No test results found.")
+                }
             }
         }
     }
