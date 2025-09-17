@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="24.343" timestamp="2025-09-17T12:04:29.820690+05:30" hostname="LAPTOP-KH81659D"><testcase classname="tests.test_login" name="test_login[None-None-dashboard]" time="13.032"><failure message="selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string&#10;  (Session info: chrome=140.0.7339.128)&#10;Stacktrace:&#10;&#09;GetHandleVerifier [0x0x7ff75a33fc95+79861]&#10;&#09;GetHandleVerifier [0x0x7ff75a33fcf0+79952]&#10;&#09;(No symbol) [0x0x7ff75a0bcada]&#10;&#09;(No symbol) [0x0x7ff75a165e34]&#10;&#09;(No symbol) [0x0x7ff75a13cada]&#10;&#09;(No symbol) [0x0x7ff75a164f8b]&#10;&#09;(No symbol) [0x0x7ff75a13c8b3]&#10;&#09;(No symbol) [0x0x7ff75a105272]&#10;&#09;(No symbol) [0x0x7ff75a106043]&#10;&#09;GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]&#10;&#09;GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]&#10;&#09;GetHandleVerifier [0x0x7ff75a6159d7+3052855]&#10;&#09;GetHandleVerifier [0x0x7ff75a35aa7e+189918]&#10;&#09;GetHandleVerifier [0x0x7ff75a362a1f+222591]&#10;&#09;GetHandleVerifier [0x0x7ff75a348ab4+116244]&#10;&#09;GetHandleVerifier [0x0x7ff75a348c69+116681]&#10;&#09;GetHandleVerifier [0x0x7ff75a32f048+11176]&#10;&#09;BaseThreadInitThunk [0x0x7ffc858ce8d7+23]&#10;&#09;RtlUserThreadStart [0x0x7ffc86ac8d9c+44]">driver = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session="064045ebb5d78a279137a67f5d09ad52")&gt;, username = None, password = None, expected = 'dashboard'
+
+    @pytest.mark.parametrize("username, password, expected", [
+        (os.getenv("USER_NAME"), os.getenv("PASSWORD"), "dashboard"),           # ✅ Positive
+        ("invalid_user", os.getenv("PASSWORD"), "Invalid credentials"),        # ❌ Negative
+        (os.getenv("USERNAME"), "wrongpass", "Invalid credentials"),           # ❌ Negative
+    ])
+    def test_login(driver, username, password, expected):
+&gt;       driver.get(BASE_URL)
+
+tests\test_login.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:356: in get
+    self.execute(Command.GET, {"url": url})
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:347: in execute
+    self.error_handler.check_response(response)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x000001D8229F7C50&gt;
+response = {'status': 400, 'value': '{"value":{"error":"invalid argument","message":"invalid argument: \'url\' must be a string\\...ff75a32f048+11176]\\n\\tBaseThreadInitThunk [0x0x7ffc858ce8d7+23]\\n\\tRtlUserThreadStart [0x0x7ffc86ac8d9c+44]\\n"}}'}
+
+    def check_response(self, response: Dict[str, Any]) -&gt; None:
+        """Checks that a JSON response from the WebDriver does not have an
+        error.
+    
+        :Args:
+         - response - The JSON response from the WebDriver server as a dictionary
+           object.
+    
+        :Raises: If the response contains an error message.
+        """
+        status = response.get("status", None)
+        if not status or status == ErrorCode.SUCCESS:
+            return
+        value = None
+        message = response.get("message", "")
+        screen: str = response.get("screen", "")
+        stacktrace = None
+        if isinstance(status, int):
+            value_json = response.get("value", None)
+            if value_json and isinstance(value_json, str):
+                import json
+    
+                try:
+                    value = json.loads(value_json)
+                    if len(value) == 1:
+                        value = value["value"]
+                    status = value.get("error", None)
+                    if not status:
+                        status = value.get("status", ErrorCode.UNKNOWN_ERROR)
+                        message = value.get("value") or value.get("message")
+                        if not isinstance(message, str):
+                            value = message
+                            message = message.get("message")
+                    else:
+                        message = value.get("message", None)
+                except ValueError:
+                    pass
+    
+        exception_class: Type[WebDriverException]
+        e = ErrorCode()
+        error_codes = [item for item in dir(e) if not item.startswith("__")]
+        for error_code in error_codes:
+            error_info = getattr(ErrorCode, error_code)
+            if isinstance(error_info, list) and status in error_info:
+                exception_class = getattr(ExceptionMapping, error_code, WebDriverException)
+                break
+        else:
+            exception_class = WebDriverException
+    
+        if not value:
+            value = response["value"]
+        if isinstance(value, str):
+            raise exception_class(value)
+        if message == "" and "message" in value:
+            message = value["message"]
+    
+        screen = None  # type: ignore[assignment]
+        if "screen" in value:
+            screen = value["screen"]
+    
+        stacktrace = None
+        st_value = value.get("stackTrace") or value.get("stacktrace")
+        if st_value:
+            if isinstance(st_value, str):
+                stacktrace = st_value.split("\n")
+            else:
+                stacktrace = []
+                try:
+                    for frame in st_value:
+                        line = frame.get("lineNumber", "")
+                        file = frame.get("fileName", "&lt;anonymous&gt;")
+                        if line:
+                            file = f"{file}:{line}"
+                        meth = frame.get("methodName", "&lt;anonymous&gt;")
+                        if "className" in frame:
+                            meth = f"{frame['className']}.{meth}"
+                        msg = "    at %s (%s)"
+                        msg = msg % (meth, file)
+                        stacktrace.append(msg)
+                except TypeError:
+                    pass
+        if exception_class == UnexpectedAlertPresentException:
+            alert_text = None
+            if "data" in value:
+                alert_text = value["data"].get("text")
+            elif "alert" in value:
+                alert_text = value["alert"].get("text")
+            raise exception_class(message, screen, stacktrace, alert_text)  # type: ignore[call-arg]  # mypy is not smart enough here
+&gt;       raise exception_class(message, screen, stacktrace)
+E       selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string
+E         (Session info: chrome=140.0.7339.128)
+E       Stacktrace:
+E       	GetHandleVerifier [0x0x7ff75a33fc95+79861]
+E       	GetHandleVerifier [0x0x7ff75a33fcf0+79952]
+E       	(No symbol) [0x0x7ff75a0bcada]
+E       	(No symbol) [0x0x7ff75a165e34]
+E       	(No symbol) [0x0x7ff75a13cada]
+E       	(No symbol) [0x0x7ff75a164f8b]
+E       	(No symbol) [0x0x7ff75a13c8b3]
+E       	(No symbol) [0x0x7ff75a105272]
+E       	(No symbol) [0x0x7ff75a106043]
+E       	GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]
+E       	GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]
+E       	GetHandleVerifier [0x0x7ff75a6159d7+3052855]
+E       	GetHandleVerifier [0x0x7ff75a35aa7e+189918]
+E       	GetHandleVerifier [0x0x7ff75a362a1f+222591]
+E       	GetHandleVerifier [0x0x7ff75a348ab4+116244]
+E       	GetHandleVerifier [0x0x7ff75a348c69+116681]
+E       	GetHandleVerifier [0x0x7ff75a32f048+11176]
+E       	BaseThreadInitThunk [0x0x7ffc858ce8d7+23]
+E       	RtlUserThreadStart [0x0x7ffc86ac8d9c+44]
+
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:229: InvalidArgumentException</failure></testcase><testcase classname="tests.test_login" name="test_login[invalid_user-None-Invalid credentials]" time="3.464"><failure message="selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string&#10;  (Session info: chrome=140.0.7339.128)&#10;Stacktrace:&#10;&#09;GetHandleVerifier [0x0x7ff75a33fc95+79861]&#10;&#09;GetHandleVerifier [0x0x7ff75a33fcf0+79952]&#10;&#09;(No symbol) [0x0x7ff75a0bcada]&#10;&#09;(No symbol) [0x0x7ff75a165e34]&#10;&#09;(No symbol) [0x0x7ff75a13cada]&#10;&#09;(No symbol) [0x0x7ff75a164f8b]&#10;&#09;(No symbol) [0x0x7ff75a13c8b3]&#10;&#09;(No symbol) [0x0x7ff75a105272]&#10;&#09;(No symbol) [0x0x7ff75a106043]&#10;&#09;GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]&#10;&#09;GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]&#10;&#09;GetHandleVerifier [0x0x7ff75a6159d7+3052855]&#10;&#09;GetHandleVerifier [0x0x7ff75a35aa7e+189918]&#10;&#09;GetHandleVerifier [0x0x7ff75a362a1f+222591]&#10;&#09;GetHandleVerifier [0x0x7ff75a348ab4+116244]&#10;&#09;GetHandleVerifier [0x0x7ff75a348c69+116681]&#10;&#09;GetHandleVerifier [0x0x7ff75a32f048+11176]&#10;&#09;BaseThreadInitThunk [0x0x7ffc858ce8d7+23]&#10;&#09;RtlUserThreadStart [0x0x7ffc86ac8d9c+44]">driver = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session="7609f2fb798e196fd5b0103023286cec")&gt;, username = 'invalid_user', password = None
+expected = 'Invalid credentials'
+
+    @pytest.mark.parametrize("username, password, expected", [
+        (os.getenv("USER_NAME"), os.getenv("PASSWORD"), "dashboard"),           # ✅ Positive
+        ("invalid_user", os.getenv("PASSWORD"), "Invalid credentials"),        # ❌ Negative
+        (os.getenv("USERNAME"), "wrongpass", "Invalid credentials"),           # ❌ Negative
+    ])
+    def test_login(driver, username, password, expected):
+&gt;       driver.get(BASE_URL)
+
+tests\test_login.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:356: in get
+    self.execute(Command.GET, {"url": url})
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:347: in execute
+    self.error_handler.check_response(response)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x000001D822CE77D0&gt;
+response = {'status': 400, 'value': '{"value":{"error":"invalid argument","message":"invalid argument: \'url\' must be a string\\...ff75a32f048+11176]\\n\\tBaseThreadInitThunk [0x0x7ffc858ce8d7+23]\\n\\tRtlUserThreadStart [0x0x7ffc86ac8d9c+44]\\n"}}'}
+
+    def check_response(self, response: Dict[str, Any]) -&gt; None:
+        """Checks that a JSON response from the WebDriver does not have an
+        error.
+    
+        :Args:
+         - response - The JSON response from the WebDriver server as a dictionary
+           object.
+    
+        :Raises: If the response contains an error message.
+        """
+        status = response.get("status", None)
+        if not status or status == ErrorCode.SUCCESS:
+            return
+        value = None
+        message = response.get("message", "")
+        screen: str = response.get("screen", "")
+        stacktrace = None
+        if isinstance(status, int):
+            value_json = response.get("value", None)
+            if value_json and isinstance(value_json, str):
+                import json
+    
+                try:
+                    value = json.loads(value_json)
+                    if len(value) == 1:
+                        value = value["value"]
+                    status = value.get("error", None)
+                    if not status:
+                        status = value.get("status", ErrorCode.UNKNOWN_ERROR)
+                        message = value.get("value") or value.get("message")
+                        if not isinstance(message, str):
+                            value = message
+                            message = message.get("message")
+                    else:
+                        message = value.get("message", None)
+                except ValueError:
+                    pass
+    
+        exception_class: Type[WebDriverException]
+        e = ErrorCode()
+        error_codes = [item for item in dir(e) if not item.startswith("__")]
+        for error_code in error_codes:
+            error_info = getattr(ErrorCode, error_code)
+            if isinstance(error_info, list) and status in error_info:
+                exception_class = getattr(ExceptionMapping, error_code, WebDriverException)
+                break
+        else:
+            exception_class = WebDriverException
+    
+        if not value:
+            value = response["value"]
+        if isinstance(value, str):
+            raise exception_class(value)
+        if message == "" and "message" in value:
+            message = value["message"]
+    
+        screen = None  # type: ignore[assignment]
+        if "screen" in value:
+            screen = value["screen"]
+    
+        stacktrace = None
+        st_value = value.get("stackTrace") or value.get("stacktrace")
+        if st_value:
+            if isinstance(st_value, str):
+                stacktrace = st_value.split("\n")
+            else:
+                stacktrace = []
+                try:
+                    for frame in st_value:
+                        line = frame.get("lineNumber", "")
+                        file = frame.get("fileName", "&lt;anonymous&gt;")
+                        if line:
+                            file = f"{file}:{line}"
+                        meth = frame.get("methodName", "&lt;anonymous&gt;")
+                        if "className" in frame:
+                            meth = f"{frame['className']}.{meth}"
+                        msg = "    at %s (%s)"
+                        msg = msg % (meth, file)
+                        stacktrace.append(msg)
+                except TypeError:
+                    pass
+        if exception_class == UnexpectedAlertPresentException:
+            alert_text = None
+            if "data" in value:
+                alert_text = value["data"].get("text")
+            elif "alert" in value:
+                alert_text = value["alert"].get("text")
+            raise exception_class(message, screen, stacktrace, alert_text)  # type: ignore[call-arg]  # mypy is not smart enough here
+&gt;       raise exception_class(message, screen, stacktrace)
+E       selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string
+E         (Session info: chrome=140.0.7339.128)
+E       Stacktrace:
+E       	GetHandleVerifier [0x0x7ff75a33fc95+79861]
+E       	GetHandleVerifier [0x0x7ff75a33fcf0+79952]
+E       	(No symbol) [0x0x7ff75a0bcada]
+E       	(No symbol) [0x0x7ff75a165e34]
+E       	(No symbol) [0x0x7ff75a13cada]
+E       	(No symbol) [0x0x7ff75a164f8b]
+E       	(No symbol) [0x0x7ff75a13c8b3]
+E       	(No symbol) [0x0x7ff75a105272]
+E       	(No symbol) [0x0x7ff75a106043]
+E       	GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]
+E       	GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]
+E       	GetHandleVerifier [0x0x7ff75a6159d7+3052855]
+E       	GetHandleVerifier [0x0x7ff75a35aa7e+189918]
+E       	GetHandleVerifier [0x0x7ff75a362a1f+222591]
+E       	GetHandleVerifier [0x0x7ff75a348ab4+116244]
+E       	GetHandleVerifier [0x0x7ff75a348c69+116681]
+E       	GetHandleVerifier [0x0x7ff75a32f048+11176]
+E       	BaseThreadInitThunk [0x0x7ffc858ce8d7+23]
+E       	RtlUserThreadStart [0x0x7ffc86ac8d9c+44]
+
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:229: InvalidArgumentException</failure></testcase><testcase classname="tests.test_login" name="test_login[Rakshith-wrongpass-Invalid credentials]" time="3.482"><failure message="selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string&#10;  (Session info: chrome=140.0.7339.128)&#10;Stacktrace:&#10;&#09;GetHandleVerifier [0x0x7ff75a33fc95+79861]&#10;&#09;GetHandleVerifier [0x0x7ff75a33fcf0+79952]&#10;&#09;(No symbol) [0x0x7ff75a0bcada]&#10;&#09;(No symbol) [0x0x7ff75a165e34]&#10;&#09;(No symbol) [0x0x7ff75a13cada]&#10;&#09;(No symbol) [0x0x7ff75a164f8b]&#10;&#09;(No symbol) [0x0x7ff75a13c8b3]&#10;&#09;(No symbol) [0x0x7ff75a105272]&#10;&#09;(No symbol) [0x0x7ff75a106043]&#10;&#09;GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]&#10;&#09;GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]&#10;&#09;GetHandleVerifier [0x0x7ff75a6159d7+3052855]&#10;&#09;GetHandleVerifier [0x0x7ff75a35aa7e+189918]&#10;&#09;GetHandleVerifier [0x0x7ff75a362a1f+222591]&#10;&#09;GetHandleVerifier [0x0x7ff75a348ab4+116244]&#10;&#09;GetHandleVerifier [0x0x7ff75a348c69+116681]&#10;&#09;GetHandleVerifier [0x0x7ff75a32f048+11176]&#10;&#09;BaseThreadInitThunk [0x0x7ffc858ce8d7+23]&#10;&#09;RtlUserThreadStart [0x0x7ffc86ac8d9c+44]">driver = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session="7ccc4a34441c87937508be9c480f1bc1")&gt;, username = 'Rakshith', password = 'wrongpass'
+expected = 'Invalid credentials'
+
+    @pytest.mark.parametrize("username, password, expected", [
+        (os.getenv("USER_NAME"), os.getenv("PASSWORD"), "dashboard"),           # ✅ Positive
+        ("invalid_user", os.getenv("PASSWORD"), "Invalid credentials"),        # ❌ Negative
+        (os.getenv("USERNAME"), "wrongpass", "Invalid credentials"),           # ❌ Negative
+    ])
+    def test_login(driver, username, password, expected):
+&gt;       driver.get(BASE_URL)
+
+tests\test_login.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:356: in get
+    self.execute(Command.GET, {"url": url})
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\webdriver.py:347: in execute
+    self.error_handler.check_response(response)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x000001D822C82C00&gt;
+response = {'status': 400, 'value': '{"value":{"error":"invalid argument","message":"invalid argument: \'url\' must be a string\\...ff75a32f048+11176]\\n\\tBaseThreadInitThunk [0x0x7ffc858ce8d7+23]\\n\\tRtlUserThreadStart [0x0x7ffc86ac8d9c+44]\\n"}}'}
+
+    def check_response(self, response: Dict[str, Any]) -&gt; None:
+        """Checks that a JSON response from the WebDriver does not have an
+        error.
+    
+        :Args:
+         - response - The JSON response from the WebDriver server as a dictionary
+           object.
+    
+        :Raises: If the response contains an error message.
+        """
+        status = response.get("status", None)
+        if not status or status == ErrorCode.SUCCESS:
+            return
+        value = None
+        message = response.get("message", "")
+        screen: str = response.get("screen", "")
+        stacktrace = None
+        if isinstance(status, int):
+            value_json = response.get("value", None)
+            if value_json and isinstance(value_json, str):
+                import json
+    
+                try:
+                    value = json.loads(value_json)
+                    if len(value) == 1:
+                        value = value["value"]
+                    status = value.get("error", None)
+                    if not status:
+                        status = value.get("status", ErrorCode.UNKNOWN_ERROR)
+                        message = value.get("value") or value.get("message")
+                        if not isinstance(message, str):
+                            value = message
+                            message = message.get("message")
+                    else:
+                        message = value.get("message", None)
+                except ValueError:
+                    pass
+    
+        exception_class: Type[WebDriverException]
+        e = ErrorCode()
+        error_codes = [item for item in dir(e) if not item.startswith("__")]
+        for error_code in error_codes:
+            error_info = getattr(ErrorCode, error_code)
+            if isinstance(error_info, list) and status in error_info:
+                exception_class = getattr(ExceptionMapping, error_code, WebDriverException)
+                break
+        else:
+            exception_class = WebDriverException
+    
+        if not value:
+            value = response["value"]
+        if isinstance(value, str):
+            raise exception_class(value)
+        if message == "" and "message" in value:
+            message = value["message"]
+    
+        screen = None  # type: ignore[assignment]
+        if "screen" in value:
+            screen = value["screen"]
+    
+        stacktrace = None
+        st_value = value.get("stackTrace") or value.get("stacktrace")
+        if st_value:
+            if isinstance(st_value, str):
+                stacktrace = st_value.split("\n")
+            else:
+                stacktrace = []
+                try:
+                    for frame in st_value:
+                        line = frame.get("lineNumber", "")
+                        file = frame.get("fileName", "&lt;anonymous&gt;")
+                        if line:
+                            file = f"{file}:{line}"
+                        meth = frame.get("methodName", "&lt;anonymous&gt;")
+                        if "className" in frame:
+                            meth = f"{frame['className']}.{meth}"
+                        msg = "    at %s (%s)"
+                        msg = msg % (meth, file)
+                        stacktrace.append(msg)
+                except TypeError:
+                    pass
+        if exception_class == UnexpectedAlertPresentException:
+            alert_text = None
+            if "data" in value:
+                alert_text = value["data"].get("text")
+            elif "alert" in value:
+                alert_text = value["alert"].get("text")
+            raise exception_class(message, screen, stacktrace, alert_text)  # type: ignore[call-arg]  # mypy is not smart enough here
+&gt;       raise exception_class(message, screen, stacktrace)
+E       selenium.common.exceptions.InvalidArgumentException: Message: invalid argument: 'url' must be a string
+E         (Session info: chrome=140.0.7339.128)
+E       Stacktrace:
+E       	GetHandleVerifier [0x0x7ff75a33fc95+79861]
+E       	GetHandleVerifier [0x0x7ff75a33fcf0+79952]
+E       	(No symbol) [0x0x7ff75a0bcada]
+E       	(No symbol) [0x0x7ff75a165e34]
+E       	(No symbol) [0x0x7ff75a13cada]
+E       	(No symbol) [0x0x7ff75a164f8b]
+E       	(No symbol) [0x0x7ff75a13c8b3]
+E       	(No symbol) [0x0x7ff75a105272]
+E       	(No symbol) [0x0x7ff75a106043]
+E       	GetHandleVerifier [0x0x7ff75a5fb9cd+2946349]
+E       	GetHandleVerifier [0x0x7ff75a5f5c4a+2922410]
+E       	GetHandleVerifier [0x0x7ff75a6159d7+3052855]
+E       	GetHandleVerifier [0x0x7ff75a35aa7e+189918]
+E       	GetHandleVerifier [0x0x7ff75a362a1f+222591]
+E       	GetHandleVerifier [0x0x7ff75a348ab4+116244]
+E       	GetHandleVerifier [0x0x7ff75a348c69+116681]
+E       	GetHandleVerifier [0x0x7ff75a32f048+11176]
+E       	BaseThreadInitThunk [0x0x7ffc858ce8d7+23]
+E       	RtlUserThreadStart [0x0x7ffc86ac8d9c+44]
+
+..\..\AppData\Local\Programs\Python\Python312\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:229: InvalidArgumentException</failure></testcase></testsuite></testsuites>
