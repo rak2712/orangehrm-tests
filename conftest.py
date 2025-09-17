@@ -14,6 +14,5 @@ def driver():
     options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(options=options)
     driver.implicitly_wait(10)
-    driver.maximize_window()
     yield driver
     driver.quit()
