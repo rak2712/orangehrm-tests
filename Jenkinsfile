@@ -99,13 +99,7 @@ pipeline {
         PASSWORD = credentials('PASSWORD')
     }
 
-    // stages {
-    //     stage('Checkout') {
-    //         steps {
-    //             git branch: 'main', url: 'https://github.com/rak2712/orangehrm-tests.git'
-    //         }
-    //     }
-
+    stages {
         stage('Install Dependencies') {
             steps {
                 sh '''
@@ -123,10 +117,8 @@ pipeline {
                     . venv/bin/activate
                     mkdir -p reports
 
-                    # Run pytest and generate JUnit XML report
                     pytest --junitxml=reports/results.xml || true
 
-                    # Make sure Jenkins can read the report
                     if [ -f reports/results.xml ]; then
                         chmod 777 reports/results.xml
                     fi
@@ -152,11 +144,9 @@ pipeline {
 
                         echo "📊 Total: ${total}, ✅ Passed: ${passed}, ❌ Failed: ${failed}"
 
-                        // Set build description and display name
                         currentBuild.description = "✅ ${passed} | ❌ ${failed}"
                         currentBuild.displayName = "#${env.BUILD_NUMBER} pass = ${passed} fail = ${failed}"
 
-                        // Optional: fail build if too many failures
                         if (total > 0 && failed > (total / 2)) {
                             error("More than 50% of test cases failed. Failing the build.")
                         }
