@@ -41,10 +41,11 @@ pipeline {
                 script {
                     def resultsFile = 'reports/results.xml'
                     if (fileExists(resultsFile)) {
-                        def xml = new XmlSlurper().parse(resultsFile)
+                        def content = readFile(resultsFile)
 
-                        def total = xml.testcase.size()
-                        def failed = xml.testcase.count { it.failure.size() > 0 }
+                        // Count occurrences of tags in the raw XML string
+                        def total = content.count('<testcase')
+                        def failed = content.count('<failure')
                         def passed = total - failed
 
                         echo "📊 Total: ${total}, ✅ Passed: ${passed}, ❌ Failed: ${failed}"
