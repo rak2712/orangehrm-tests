@@ -1,5 +1,6 @@
 import pytest
 import os
+import time
 from pages.login_page import LoginPage
 
 BASE_URL = os.getenv("BASE_URL")
@@ -11,7 +12,9 @@ BASE_URL = os.getenv("BASE_URL")
 ])
 def test_login(driver, username, password, expected):
     driver.get(BASE_URL)
+    time.sleep(5)
     login_page = LoginPage(driver)
+    time.sleep(5)
     login_page.login(username, password)
 
     if expected == "Dashboard":
