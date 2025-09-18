@@ -14,7 +14,7 @@ def test_login(driver, username, password, expected):
     login_page = LoginPage(driver)
     login_page.login(username, password)
 
-    if expected == "dashboard":
+    if expected == "Dashboard":
         assert "/dashboard" in driver.current_url
     else:
         assert expected in login_page.get_error_message()
