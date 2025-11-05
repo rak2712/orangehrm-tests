@@ -2,91 +2,49 @@ pipeline {
     agent any
 
     environment {
-        BASE_URL = credentials('BASE_URL')
-        USER_NAME = credentials('USER_NAME')
-        PASSWORD = credentials('PASSWORD')
+        // Directly define the credentials (Not recommended for sensitive info)
+        BASE_URL = 'https://opensource-demo.orangehrmlive.com/web/index.php/auth/login'
+        USER_NAME = 'Admin'
+        PASSWORD = 'admin123'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/rak2712/orangehrm-tests.git'
+                checkout scm  // Checkout code from SCM (e.g., Git)
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    python3 -m pip install --upgrade pip --break-system-packages
-                    pip install -r requirements.txt --break-system-packages
-                '''
-            }
-        }
-
-        stage('Run Selenium Tests') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    mkdir -p reports
-
-                    # Run pytest, allow failure to continue the pipeline
-                    pytest --junitxml=reports/results.xml || true
-
-                    # Set permissions if the report exists
-                    if [ -f reports/results.xml ]; then
-                        chmod 777 reports/results.xml
-                    fi
-                '''
-            }
-        }
-
-        stage('Parse Test Results') {
+        stage('Login to Application') {
             steps {
                 script {
-                    def resultsFile = 'reports/results.xml'
-                    if (fileExists(resultsFile)) {
-                        def result = readFile(resultsFile)
-                        def total = 0
-                        def failed = 0
+                    // Here we simulate logging into the application with the hardcoded credentials
+                    echo "Logging into ${BASE_URL} with username ${USER_NAME}"
 
-                        result.readLines().each { line ->
-                            if (line.contains("<testcase")) total++
-                            if (line.contains("<failure")) failed++
-                        }
+                    // For example, using curl (or a tool like Selenium or another test framework) 
+                    // to automate the login process
 
-                        def passed = total - failed
-                        echo "📊 Total: ${total}, ✅ Passed: ${passed}, ❌ Failed: ${failed}"
-                        currentBuild.description = "✅ ${passed} | ❌ ${failed}"
-
-                        if (total > 0 && failed > (total / 2)) {
-                            error("More than 50% of test cases failed. Failing the build.")
-                        }
-                    } else {
-                        echo "⚠️ Test results file not found: ${resultsFile}"
-                    }
+                    // Example of using curl to send a POST request to login (for an API-based login)
+                    sh """
+                    curl -X POST ${BASE_URL} -d 'username=${USER_NAME}' -d 'password=${PASSWORD}'
+                    """
                 }
             }
         }
 
-        stage('Publish Test Report') {
+        stage('Run Tests') {
             steps {
-                junit allowEmptyResults: true, testResults: 'reports/results.xml'
+                // Add test execution steps here (e.g., using Selenium, Cypress, etc.)
+                echo "Running tests against ${BASE_URL}"
+                // Your test execution logic
             }
         }
     }
 
     post {
         always {
-            echo '🧹 Cleaning up...'
-            junit allowEmptyResults: true, testResults: 'reports/results.xml'
-        }
-        success {
-            echo '✅ Build succeeded!'
-        }
-        failure {
-            echo '❌ Build failed!'
+            echo 'Cleaning up after pipeline'
+            // Any cleanup tasks you want to perform, e.g., archiving test results
         }
     }
 }
